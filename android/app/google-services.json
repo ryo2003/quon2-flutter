@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790141080371",
+    "project_id": "quon2-45c4f",
+    "storage_bucket": "quon2-45c4f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790141080371:android:dd50dc55f40fb9389ba446",
+        "android_client_info": {
+          "package_name": "com.example.quon2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBl5WSwaiBCV-Q-oVF3KYG_35k7lWcyaos"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
