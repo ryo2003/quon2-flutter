@@ -1,19 +1,18 @@
-import 'package:flutter/src/widgets/framework.dart';
-import 'package:flutter/src/widgets/placeholder.dart';
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'models/photo_model.dart';
 
 class AddPhoto extends StatefulWidget {
   const AddPhoto({
-    super.key,
+    Key? key,
     required this.dateId,
     required this.albumType,
-  });
+  }) : super(key: key);
+
   final String dateId;
   final String albumType;
 
@@ -22,19 +21,51 @@ class AddPhoto extends StatefulWidget {
 }
 
 class _AddPhotoState extends State<AddPhoto> {
-  late String title;
-
   File? _image;
+  String? _imageUrl;
   bool _uploading = false;
 
-  Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await ImagePicker().pickImage(source: source);
-    setState(() {
-      _image = File(pickedFile!.path);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fetchPhoto();
     });
   }
 
+  Future<void> fetchPhoto() async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('photos')
+          .where('storedDate', isEqualTo: widget.dateId)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        Map<String, dynamic> data =
+            snapshot.docs[0].data() as Map<String, dynamic>;
+        _imageUrl = data['imageUrl'];
+      }
+    } catch (e) {
+      print('Error fetching photo: $e');
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final pickedFile = await ImagePicker().pickImage(source: source);
+    if (pickedFile != null) {
+      setState(() {
+        _image = File(pickedFile.path);
+      });
+    }
+  }
+
   Future<void> _uploadPhoto() async {
+    if (_image == null) return;
+
+    setState(() {
+      _uploading = true;
+    });
+
     try {
       // Upload image to Firebase Storage and get the download URL
       final storageRef = FirebaseStorage.instance
@@ -46,14 +77,15 @@ class _AddPhotoState extends State<AddPhoto> {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       // Save photo data to Firestore
-      // final photo = Photo(
-      //   id: "",
-      //   createdAt: Timestamp.now(),
-      //   uploaderUid: FirebaseAuth.instance.currentUser!.uid,
-      //   imageUrl: downloadUrl,
-      //   albumId: widget.albumId,
-      // );
-      // await FirebaseFirestore.instance.collection('photos').add(photo.toMap());
+      final photo = Photo(
+        id: "",
+        createdAt: Timestamp.now(),
+        uploaderUid: FirebaseAuth.instance.currentUser!.uid,
+        imageUrl: downloadUrl,
+        storedDate: widget.dateId,
+        isWorld: false,
+      );
+      await FirebaseFirestore.instance.collection('photos').add(photo.toMap());
 
       // Navigate back to the previous screen
       if (mounted) {
@@ -74,30 +106,43 @@ class _AddPhotoState extends State<AddPhoto> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.dateId + widget.albumType),
+        title: Text('${widget.dateId} ${widget.albumType}'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  _pickImage(ImageSource.gallery);
-                },
-                child: const Text('Choose Photo'),
+        child: FutureBuilder(
+          future: fetchPhoto(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
+
+            return Form(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _pickImage(ImageSource.gallery),
+                    child: const Text('Choose Photo'),
+                  ),
+                  if (_image == null && _imageUrl != null) ...[
+                    const SizedBox(height: 20),
+                    Image.network(_imageUrl!),
+                  ],
+                  if (_image != null) ...[
+                    const SizedBox(height: 20),
+                    Image.file(_image!),
+                  ],
+                  ElevatedButton(
+                    onPressed: _uploading ? null : _uploadPhoto,
+                    child: _uploading
+                        ? const CircularProgressIndicator()
+                        : const Text('Upload'),
+                  ),
+                ],
               ),
-              if (_image != null) ...[
-                const SizedBox(height: 20),
-                Image.file(_image!),
-              ],
-              ElevatedButton(
-                onPressed: _uploadPhoto,
-                child: const Text('Upload'),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
