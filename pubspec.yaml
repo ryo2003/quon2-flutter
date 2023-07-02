@@ -43,7 +43,7 @@ dependencies:
   firebase_storage: ^11.1.2
   image_picker: ^0.8.7+4
   firebase_analytics: ^10.2.0
-
+  swipe_cards: ^2.0.0+1
 dev_dependencies:
   flutter_test:
     sdk: flutter

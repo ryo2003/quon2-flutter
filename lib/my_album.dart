@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lazy_load_scrollview/lazy_load_scrollview.dart';
@@ -19,6 +20,7 @@ class _MyAlbumState extends State<MyAlbum> {
   List<DateTime> calendarDates = [];
   int currentPageIndex = 0;
   Map<String, String>? datesToUrl = {};
+  final FirebaseAuth auth = FirebaseAuth.instance;
 
   @override
   void initState() {
@@ -29,8 +31,13 @@ class _MyAlbumState extends State<MyAlbum> {
 
   Future<void> fetchPhoto() async {
     try {
-      final QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection('photos').get();
+      final User? user = auth.currentUser;
+      final uid = user!.uid;
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('photos')
+          .where("isWorld", isEqualTo: false)
+          .where("uploaderUid", isEqualTo: uid)
+          .get();
 
       Map<String, dynamic> data;
 
@@ -84,6 +91,8 @@ class _MyAlbumState extends State<MyAlbum> {
                 mainAxisSpacing: 10.0,
               ),
               itemBuilder: (BuildContext context, int index) {
+
+                
                 final dateIndex = index;
                 final formattedDate =
                     DateFormat('yyyy-MM-dd').format(calendarDates[dateIndex]);

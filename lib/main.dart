@@ -5,6 +5,7 @@ import 'package:quon2/login_view.dart';
 import 'package:quon2/main_screen.dart';
 import 'package:quon2/my_album.dart';
 import 'package:quon2/register_view.dart';
+import 'package:quon2/todays_world_photo.dart';
 import 'package:quon2/verify_email_view.dart';
 
 import 'firebase_options.dart';
@@ -61,7 +62,7 @@ class HomePage extends StatelessWidget {
             } else {
               return const LoginView();
             }
-            return const MainScreen();
+            return const TodaysWorld();
           default:
             return const CircularProgressIndicator();
         }

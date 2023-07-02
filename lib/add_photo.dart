@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'models/candidates_photo_model.dart';
 import 'models/photo_model.dart';
 
 class AddPhoto extends StatefulWidget {
@@ -33,11 +34,34 @@ class _AddPhotoState extends State<AddPhoto> {
     });
   }
 
+  Future<void> _deletePhoto() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('photos')
+        .where('storedDate', isEqualTo: widget.dateId)
+        .where('isWorld', isEqualTo: widget.albumType == "world")
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      // Delete image from Firebase Storage
+      var imageUrl = snapshot.docs[0].data()['imageUrl'];
+      await FirebaseStorage.instance.refFromURL(imageUrl).delete();
+
+      // Delete photo data from Firestore
+      await snapshot.docs[0].reference.delete();
+
+      // Clear local image url
+      setState(() {
+        _imageUrl = null;
+      });
+    }
+  }
+
   Future<void> fetchPhoto() async {
     try {
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('photos')
           .where('storedDate', isEqualTo: widget.dateId)
+          .where('isWorld', isEqualTo: widget.albumType == "world")
           .get();
 
       if (snapshot.docs.isNotEmpty) {
@@ -59,15 +83,51 @@ class _AddPhotoState extends State<AddPhoto> {
     }
   }
 
+  Future<bool> _showUploadToWorldAlbumDialog() async {
+    if (widget.albumType != 'personal') return false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Upload to world album'),
+          content: Text(
+              'Do you want to upload this photo to the world album as well?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
+              child: Text('Yes'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: Text('No'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
   Future<void> _uploadPhoto() async {
     if (_image == null) return;
+
+    final addToWorldAlbum = await _showUploadToWorldAlbumDialog();
 
     setState(() {
       _uploading = true;
     });
 
     try {
-      // Upload image to Firebase Storage and get the download URL
+      // Delete the old photo if exists
+      await _deletePhoto();
+
+      // Upload new photo to Firebase Storage and get the download URL
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('photos')
@@ -77,15 +137,30 @@ class _AddPhotoState extends State<AddPhoto> {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       // Save photo data to Firestore
-      final photo = Photo(
-        id: "",
-        createdAt: Timestamp.now(),
-        uploaderUid: FirebaseAuth.instance.currentUser!.uid,
-        imageUrl: downloadUrl,
-        storedDate: widget.dateId,
-        isWorld: false,
-      );
-      await FirebaseFirestore.instance.collection('photos').add(photo.toMap());
+      if (addToWorldAlbum) {
+        final photo = CnadidatePhoto(
+          id: "",
+          createdAt: Timestamp.now(),
+          uploaderUid: FirebaseAuth.instance.currentUser!.uid,
+          imageUrl: downloadUrl,
+          storedDate: widget.dateId,
+        );
+        await FirebaseFirestore.instance
+            .collection('candidate_photos')
+            .add(photo.toMap());
+      } else {
+        final photo = Photo(
+          id: "",
+          createdAt: Timestamp.now(),
+          uploaderUid: FirebaseAuth.instance.currentUser!.uid,
+          imageUrl: downloadUrl,
+          storedDate: widget.dateId,
+          isWorld: widget.albumType == "world", //|| addToWorldAlbum,
+        );
+        await FirebaseFirestore.instance
+            .collection('photos')
+            .add(photo.toMap());
+      }
 
       // Navigate back to the previous screen
       if (mounted) {
@@ -114,7 +189,7 @@ class _AddPhotoState extends State<AddPhoto> {
           future: fetchPhoto(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator());
             }
 
             return Form(
