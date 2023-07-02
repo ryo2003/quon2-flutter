@@ -137,8 +137,18 @@ class _AddPhotoState extends State<AddPhoto> {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       // Save photo data to Firestore
+
+      final photo = Photo(
+        id: "",
+        createdAt: Timestamp.now(),
+        uploaderUid: FirebaseAuth.instance.currentUser!.uid,
+        imageUrl: downloadUrl,
+        storedDate: widget.dateId,
+        isWorld: widget.albumType == "world", //|| addToWorldAlbum,
+      );
+
       if (addToWorldAlbum) {
-        final photo = CnadidatePhoto(
+        final candidatePhoto = CnadidatePhoto(
           id: "",
           createdAt: Timestamp.now(),
           uploaderUid: FirebaseAuth.instance.currentUser!.uid,
@@ -147,16 +157,12 @@ class _AddPhotoState extends State<AddPhoto> {
         );
         await FirebaseFirestore.instance
             .collection('candidate_photos')
+            .add(candidatePhoto.toMap());
+
+        await FirebaseFirestore.instance
+            .collection('photos')
             .add(photo.toMap());
       } else {
-        final photo = Photo(
-          id: "",
-          createdAt: Timestamp.now(),
-          uploaderUid: FirebaseAuth.instance.currentUser!.uid,
-          imageUrl: downloadUrl,
-          storedDate: widget.dateId,
-          isWorld: widget.albumType == "world", //|| addToWorldAlbum,
-        );
         await FirebaseFirestore.instance
             .collection('photos')
             .add(photo.toMap());

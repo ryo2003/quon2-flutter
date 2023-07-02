@@ -9,7 +9,7 @@ import 'models/candidates_photo_model.dart';
 
 class TodaysWorld extends StatefulWidget {
   const TodaysWorld({super.key});
-
+  static const String id = 'todays_world';
   @override
   State<TodaysWorld> createState() => _TodaysWorldState();
 }
@@ -17,31 +17,8 @@ class TodaysWorld extends StatefulWidget {
 class _TodaysWorldState extends State<TodaysWorld> {
   final List<SwipeItem> _swipeItems = <SwipeItem>[];
   final FirebaseAuth auth = FirebaseAuth.instance;
-
   MatchEngine? _matchEngine;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
-  final List<String> _names = [
-    "Red",
-    "Blue",
-    "Green",
-    "Yellow",
-    "Orange",
-    "Grey",
-    "Purple",
-    "Pink"
-  ];
-  final List<Color> _colors = [
-    Colors.red,
-    Colors.blue,
-    Colors.green,
-    Colors.yellow,
-    Colors.orange,
-    Colors.grey,
-    Colors.purple,
-    Colors.pink
-  ];
-
-  List<String> _photosUrl = [];
 
   Future<void> _loadPhotos() async {
     final User? user = auth.currentUser;
@@ -56,28 +33,25 @@ class _TodaysWorldState extends State<TodaysWorld> {
       data = doc.data() as Map<String, dynamic>;
       photos.add(data['imageUrl']);
     }
-    setState(() {
-      _photosUrl = photos;
-      //print(_photosUrl);
-    });
-    for (int i = 0; i < _photosUrl.length; i++) {
+
+    for (int i = 0; i < photos.length; i++) {
       _swipeItems.add(SwipeItem(
-          content: _photosUrl[i],
+          content: photos[i],
           likeAction: () {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Liked ${_photosUrl[i]}"),
+              content: Text("Liked ${photos[i]}"),
               duration: const Duration(milliseconds: 500),
             ));
           },
           nopeAction: () {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Nope ${_photosUrl[i]}"),
+              content: Text("Nope ${photos[i]}"),
               duration: const Duration(milliseconds: 500),
             ));
           },
           superlikeAction: () {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Superliked ${_photosUrl[i]}"),
+              content: Text("Superliked ${photos[i]}"),
               duration: const Duration(milliseconds: 500),
             ));
           },
@@ -85,90 +59,91 @@ class _TodaysWorldState extends State<TodaysWorld> {
             print("Region $region");
           }));
     }
-    //print(_swipeItems[0].content);
     _matchEngine = MatchEngine(swipeItems: _swipeItems);
-  }
-
-  @override
-  void initState() {
-    _loadPhotos();
-    //print(_photosUrl);
-    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        key: _scaffoldKey,
-        body: Stack(children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height - kToolbarHeight,
-            child: SwipeCards(
-              matchEngine: _matchEngine!,
-              itemBuilder: (BuildContext context, int index) {
-                return Image(image: NetworkImage(_photosUrl[index]));
-              },
-              onStackFinished: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text("Stack Finished"),
-                  duration: Duration(milliseconds: 500),
-                ));
-                Navigator.of(context)
-                    .pushNamedAndRemoveUntil(MainScreen.id, (route) => false);
-              },
-              itemChanged: (SwipeItem item, int index) {
-                //print("item: ${item.content.text}, index: $index");
-              },
-              leftSwipeAllowed: true,
-              rightSwipeAllowed: true,
-              upSwipeAllowed: true,
-              fillSpace: true,
-              likeTag: Container(
-                margin: const EdgeInsets.all(15.0),
-                padding: const EdgeInsets.all(3.0),
-                decoration:
-                    BoxDecoration(border: Border.all(color: Colors.green)),
-                child: Text('Like'),
+      key: _scaffoldKey,
+      body: FutureBuilder(
+        future: _loadPhotos(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else {
+            return Stack(children: [
+              SizedBox(
+                height: MediaQuery.of(context).size.height - kToolbarHeight,
+                child: SwipeCards(
+                  matchEngine: _matchEngine!,
+                  itemBuilder: (BuildContext context, int index) {
+                    return Image(
+                        image: NetworkImage(_swipeItems[index].content));
+                  },
+                  onStackFinished: () {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("Stack Finished"),
+                      duration: Duration(milliseconds: 500),
+                    ));
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                        MainScreen.id, (route) => false);
+                  },
+                  itemChanged: (SwipeItem item, int index) {},
+                  leftSwipeAllowed: true,
+                  rightSwipeAllowed: true,
+                  upSwipeAllowed: true,
+                  fillSpace: true,
+                  likeTag: Container(
+                    margin: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.all(3.0),
+                    decoration:
+                        BoxDecoration(border: Border.all(color: Colors.green)),
+                    child: Text('Like'),
+                  ),
+                  nopeTag: Container(
+                    margin: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.all(3.0),
+                    decoration:
+                        BoxDecoration(border: Border.all(color: Colors.red)),
+                    child: Text('Nope'),
+                  ),
+                  superLikeTag: Container(
+                    margin: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.all(3.0),
+                    decoration:
+                        BoxDecoration(border: Border.all(color: Colors.orange)),
+                    child: Text('Super Like'),
+                  ),
+                ),
               ),
-              nopeTag: Container(
-                margin: const EdgeInsets.all(15.0),
-                padding: const EdgeInsets.all(3.0),
-                decoration:
-                    BoxDecoration(border: Border.all(color: Colors.red)),
-                child: Text('Nope'),
-              ),
-              superLikeTag: Container(
-                margin: const EdgeInsets.all(15.0),
-                padding: const EdgeInsets.all(3.0),
-                decoration:
-                    BoxDecoration(border: Border.all(color: Colors.orange)),
-                child: Text('Super Like'),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                    onPressed: () {
-                      _matchEngine!.currentItem?.nope();
-                    },
-                    child: Text("Nope")),
-                ElevatedButton(
-                    onPressed: () {
-                      _matchEngine!.currentItem?.superLike();
-                    },
-                    child: Text("Superlike")),
-                ElevatedButton(
-                    onPressed: () {
-                      _matchEngine!.currentItem?.like();
-                    },
-                    child: Text("Like"))
-              ],
-            ),
-          )
-        ]));
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                        onPressed: () {
+                          _matchEngine!.currentItem?.nope();
+                        },
+                        child: Text("Nope")),
+                    ElevatedButton(
+                        onPressed: () {
+                          _matchEngine!.currentItem?.superLike();
+                        },
+                        child: Text("Superlike")),
+                    ElevatedButton(
+                        onPressed: () {
+                          _matchEngine!.currentItem?.like();
+                        },
+                        child: Text("Like"))
+                  ],
+                ),
+              )
+            ]);
+          }
+        },
+      ),
+    );
   }
 }

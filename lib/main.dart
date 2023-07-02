@@ -34,6 +34,7 @@ class MyApp extends StatelessWidget {
         MainScreen.id: (context) => const MainScreen(),
         RegisterView.id: (context) => const RegisterView(),
         LoginView.id: (context) => const LoginView(),
+        TodaysWorld.id: (context) => const TodaysWorld(),
       },
     );
   }
