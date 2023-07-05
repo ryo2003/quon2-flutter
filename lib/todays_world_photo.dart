@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:quon2/main_screen.dart';
 import 'package:swipe_cards/draggable_card.dart';
 import 'package:swipe_cards/swipe_cards.dart';
@@ -20,12 +21,33 @@ class _TodaysWorldState extends State<TodaysWorld> {
   MatchEngine? _matchEngine;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
 
+  void increaseLikes(String url) async {
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('candidate_photos')
+        .where('imageUrl', isEqualTo: url)
+        .get();
+
+    for (final documentSnapshot in querySnapshot.docs) {
+      final documentReference = FirebaseFirestore.instance
+          .collection('candidate_photos')
+          .doc(documentSnapshot.id);
+
+      documentReference.update({
+        'numOfLikes': FieldValue.increment(
+            1), // Increment the value by 1 or provide the desired value
+      }).then((value) {
+        print('Update successful');
+      }).catchError((error) {
+        print('Error updating document: $error');
+      });
+    }
+  }
+
   Future<void> _loadPhotos() async {
-    final User? user = auth.currentUser;
-    final uid = user!.uid;
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('candidate_photos')
-        .where("uploaderUid", isEqualTo: uid)
+        .where("storedDate",
+            isEqualTo: DateFormat('yyyy-MM-dd').format(DateTime.now()))
         .get();
     Map<String, dynamic> data;
     List<String> photos = [];
@@ -42,6 +64,7 @@ class _TodaysWorldState extends State<TodaysWorld> {
               content: Text("Liked ${photos[i]}"),
               duration: const Duration(milliseconds: 500),
             ));
+            increaseLikes(photos[i]);
           },
           nopeAction: () {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -60,6 +83,11 @@ class _TodaysWorldState extends State<TodaysWorld> {
           }));
     }
     _matchEngine = MatchEngine(swipeItems: _swipeItems);
+
+    if (snapshot.docs.isEmpty) {
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil(MainScreen.id, (route) => false);
+    }
   }
 
   @override
@@ -70,7 +98,7 @@ class _TodaysWorldState extends State<TodaysWorld> {
         future: _loadPhotos(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           } else {
             return Stack(children: [
               SizedBox(
@@ -86,6 +114,7 @@ class _TodaysWorldState extends State<TodaysWorld> {
                       content: Text("Stack Finished"),
                       duration: Duration(milliseconds: 500),
                     ));
+
                     Navigator.of(context).pushNamedAndRemoveUntil(
                         MainScreen.id, (route) => false);
                   },

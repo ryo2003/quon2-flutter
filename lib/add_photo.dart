@@ -34,6 +34,18 @@ class _AddPhotoState extends State<AddPhoto> {
     });
   }
 
+  Future<void> _deleteCandidatePhoto() async {
+    final snapshot2 = await FirebaseFirestore.instance
+        .collection('candidate_photos')
+        .where('uploaderUid', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .get();
+
+    if (snapshot2.docs.isNotEmpty) {
+      // Delete photo data from Firestore
+      await snapshot2.docs[0].reference.delete();
+    }
+  }
+
   Future<void> _deletePhoto() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('photos')
@@ -97,6 +109,7 @@ class _AddPhotoState extends State<AddPhoto> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context, true);
+                _deleteCandidatePhoto();
               },
               child: Text('Yes'),
             ),
@@ -148,12 +161,13 @@ class _AddPhotoState extends State<AddPhoto> {
       );
 
       if (addToWorldAlbum) {
-        final candidatePhoto = CnadidatePhoto(
+        final candidatePhoto = CandidatePhoto(
           id: "",
           createdAt: Timestamp.now(),
           uploaderUid: FirebaseAuth.instance.currentUser!.uid,
           imageUrl: downloadUrl,
           storedDate: widget.dateId,
+          numOfLikes: 0,
         );
         await FirebaseFirestore.instance
             .collection('candidate_photos')
